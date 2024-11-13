@@ -1,4 +1,3 @@
-
 const Content = require('../models/Content');
 const Subscription = require('../models/Subscription');
 
@@ -32,14 +31,20 @@ exports.createContent = async (req, res) => {
         await content.save();
         res.status(201).json(content);
     } catch (err) {
+        console.error('Error creating content:', err); // Detailed logging
         res.status(400).send('Error creating content: ' + err.message);
     }
 };
 
 // Get all content
 exports.getAllContent = async (req, res) => {
-    const content = await Content.find();
-    res.json(content);
+    try {
+        const content = await Content.find();
+        res.json(content);
+    } catch (err) {
+        console.error('Error fetching all content:', err);
+        res.status(500).send('Error fetching content: ' + err.message);
+    }
 };
 
 // Get content by ID
@@ -48,10 +53,8 @@ exports.getContentById = async (req, res) => {
         const content = await Content.findById(req.params.id);
         if (!content) return res.status(404).send('Content not found.');
 
-        // Check if the user is subscribed if the content is premium
         const isUserSubscribed = await Subscription.findOne({
-            userId: req.User._id, // assuming req.User contains user info after auth middleware
-            // Check if subscription is active
+            userId: req.user._id,
             expirationDate: { $gt: new Date() }
         });
 
@@ -59,10 +62,10 @@ exports.getContentById = async (req, res) => {
             return res.status(403).send('Access to this content is restricted. Please subscribe.');
         }
 
-        // Respond with content details excluding the file
         const { file, ...rest } = content.toObject();
         res.json(rest);
     } catch (err) {
+        console.error('Error fetching content by ID:', err);
         res.status(400).send('Error fetching content: ' + err.message);
     }
 };
@@ -78,7 +81,6 @@ exports.updateContent = async (req, res) => {
             isPremium: req.body.isPremium,
         };
 
-        // Handle file upload
         if (req.file) {
             updatedData.file = {
                 data: req.file.buffer,
@@ -90,6 +92,7 @@ exports.updateContent = async (req, res) => {
         if (!content) return res.status(404).send('Content not found.');
         res.json(content);
     } catch (err) {
+        console.error('Error updating content:', err);
         res.status(400).send('Error updating content: ' + err.message);
     }
 };
@@ -101,6 +104,7 @@ exports.deleteContent = async (req, res) => {
         if (!content) return res.status(404).send('Content not found.');
         res.json({ message: 'Content deleted successfully.' });
     } catch (err) {
+        console.error('Error deleting content:', err);
         res.status(400).send('Error deleting content: ' + err.message);
     }
 };
@@ -111,6 +115,7 @@ exports.getAllVideos = async (req, res) => {
         const videos = await Content.find({ contentType: 'Video' });
         res.json(videos);
     } catch (err) {
+        console.error('Error fetching videos:', err);
         res.status(400).send('Error fetching videos: ' + err.message);
     }
 };
@@ -121,6 +126,7 @@ exports.getAllPodcasts = async (req, res) => {
         const podcasts = await Content.find({ contentType: 'Podcast' });
         res.json(podcasts);
     } catch (err) {
+        console.error('Error fetching podcasts:', err);
         res.status(400).send('Error fetching podcasts: ' + err.message);
     }
 };
@@ -131,6 +137,7 @@ exports.getAllArticles = async (req, res) => {
         const articles = await Content.find({ contentType: 'Article' });
         res.json(articles);
     } catch (err) {
+        console.error('Error fetching articles:', err);
         res.status(400).send('Error fetching articles: ' + err.message);
     }
 };
