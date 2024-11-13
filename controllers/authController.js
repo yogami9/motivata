@@ -11,10 +11,6 @@ exports.register = async(req, res) => {
         username
     } = req.body;
 
-    // Validate that the passwords match
-    if (password !== confirmPassword) {
-        return res.status(400).send('Passwords do not match.');
-    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
