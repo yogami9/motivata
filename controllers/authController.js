@@ -7,10 +7,11 @@ exports.register = async(req, res) => {
     const {
         email,
         password,
-        confirmPassword,
+        confirmPassword,  // This is for validation only
         username
     } = req.body;
 
+    // Validate that the passwords match
     if (password !== confirmPassword) {
         return res.status(400).send('Passwords do not match.');
     }
@@ -18,7 +19,7 @@ exports.register = async(req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
         email,
-        password: hashedPassword,
+        password: hashedPassword, // Only save the hashed password
         username
     });
 
