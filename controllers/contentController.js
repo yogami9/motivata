@@ -1,6 +1,24 @@
 const Content = require('../models/Content');
 const Subscription = require('../models/Subscription');
 
+// Helper function to validate file extensions
+const isValidFileType = (type, extension) => {
+    const videoTypes = ['mp4', 'mkv', 'webm', 'avi']; // Video formats
+    const podcastTypes = ['mp3', 'wav']; // Podcast formats
+    const documentTypes = ['pdf', 'docx', 'xlsx', 'pptx']; // Document formats
+
+    switch (type) {
+        case 'Video':
+            return videoTypes.includes(extension);
+        case 'Podcast':
+            return podcastTypes.includes(extension);
+        case 'Article':
+            return documentTypes.includes(extension);
+        default:
+            return false; // Invalid type
+    }
+};
+
 // Create new content with file upload
 exports.createContent = async (req, res) => {
     const {
@@ -13,6 +31,11 @@ exports.createContent = async (req, res) => {
 
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
+    }
+
+    const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
+    if (!isValidFileType(contentType, fileExtension)) {
+        return res.status(400).send(`Invalid file type for ${contentType}.`);
     }
 
     const content = new Content({
@@ -31,7 +54,7 @@ exports.createContent = async (req, res) => {
         await content.save();
         res.status(201).json(content);
     } catch (err) {
-        console.error('Error creating content:', err); // Detailed logging
+        console.error('Error creating content:', err);
         res.status(400).send('Error creating content: ' + err.message);
     }
 };
@@ -82,6 +105,10 @@ exports.updateContent = async (req, res) => {
         };
 
         if (req.file) {
+            const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
+            if (!isValidFileType(updatedData.contentType, fileExtension)) {
+                return res.status(400).send(`Invalid file type for ${updatedData.contentType}.`);
+            }
             updatedData.file = {
                 data: req.file.buffer,
                 contentType: req.file.mimetype,
