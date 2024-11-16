@@ -1,11 +1,13 @@
 const Content = require('../models/Content');
 const Subscription = require('../models/Subscription');
+const mongoose = require('mongoose');
 
 // Helper function to validate file extensions
 const isValidFileType = (type, extension) => {
     const videoTypes = ['mp4', 'mkv', 'webm', 'avi']; // Video formats
     const podcastTypes = ['mp3', 'wav']; // Podcast formats
     const documentTypes = ['pdf', 'docx', 'xlsx', 'pptx']; // Document formats
+    const imageTypes = ['jpg', 'jpeg', 'png', 'gif']; // Image formats for thumbnail
 
     switch (type) {
         case 'Video':
@@ -14,6 +16,8 @@ const isValidFileType = (type, extension) => {
             return podcastTypes.includes(extension);
         case 'Article':
             return documentTypes.includes(extension);
+        case 'Thumbnail':
+            return imageTypes.includes(extension);
         default:
             return false; // Invalid type
     }
@@ -25,28 +29,43 @@ exports.createContent = async (req, res) => {
         title,
         description,
         contentType,
-        thumbnail,
         isPremium
     } = req.body;
 
+    // Check if the content file and thumbnail file are uploaded
     if (!req.file) {
-        return res.status(400).send('No file uploaded.');
+        return res.status(400).send('No content file uploaded.');
+    }
+    if (!req.files.thumbnail) {
+        return res.status(400).send('No thumbnail uploaded.');
     }
 
+    // Extract the file extension for both the content file and the thumbnail
     const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
+    const thumbnailExtension = req.files.thumbnail.originalname.split('.').pop().toLowerCase();
+
+    // Validate the content file type
     if (!isValidFileType(contentType, fileExtension)) {
         return res.status(400).send(`Invalid file type for ${contentType}.`);
+    }
+    
+    // Validate the thumbnail type
+    if (!isValidFileType('Thumbnail', thumbnailExtension)) {
+        return res.status(400).send('Invalid thumbnail file type.');
     }
 
     const content = new Content({
         title,
         description,
         contentType,
-        thumbnail,
+        thumbnail: {
+            data: req.files.thumbnail[0].buffer,  // Change according to your setup if you process differently
+            contentType: req.files.thumbnail[0].mimetype,
+        },
         isPremium,
         file: {
             data: req.file.buffer,
-            contentType: req.file.mimetype
+            contentType: req.file.mimetype,
         }
     });
 
@@ -81,6 +100,7 @@ exports.getContentById = async (req, res) => {
             expirationDate: { $gt: new Date() }
         });
 
+        // Access control for premium content
         if (content.isPremium && !isUserSubscribed) {
             return res.status(403).send('Access to this content is restricted. Please subscribe.');
         }
@@ -100,10 +120,10 @@ exports.updateContent = async (req, res) => {
             title: req.body.title,
             description: req.body.description,
             contentType: req.body.contentType,
-            thumbnail: req.body.thumbnail,
             isPremium: req.body.isPremium,
         };
 
+        // Check if a new file or thumbnail was uploaded
         if (req.file) {
             const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
             if (!isValidFileType(updatedData.contentType, fileExtension)) {
@@ -112,6 +132,17 @@ exports.updateContent = async (req, res) => {
             updatedData.file = {
                 data: req.file.buffer,
                 contentType: req.file.mimetype,
+            };
+        }
+        
+        if (req.files.thumbnail) {
+            const thumbnailExtension = req.files.thumbnail[0].originalname.split('.').pop().toLowerCase();
+            if (!isValidFileType('Thumbnail', thumbnailExtension)) {
+                return res.status(400).send('Invalid thumbnail file type.');
+            }
+            updatedData.thumbnail = {
+                data: req.files.thumbnail[0].buffer,
+                contentType: req.files.thumbnail[0].mimetype,
             };
         }
 
